@@ -72,9 +72,9 @@ def main(args):
         mostCommonLabel,maxLabelCount = c.most_common(1)[0] # Class that shows up most in this atom, and how many times it showed up
         majorities.append(mostCommonLabel) # List of most common class in each atom
         purities.append((maxLabelCount / len(atom)) # Store tuple of purity and which class the atom was.
-    fig,ax = plt.subplot()
-    ax.hist(purities)
-    ax.set(title="Distribution of atom purities")
+    
+    plt.hist(purities)
+    plt.set(title="Distribution of atom purities")
     plt.show()
 
 
