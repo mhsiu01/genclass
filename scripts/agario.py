@@ -65,18 +65,18 @@ def main(args):
     print("kmeans done.")
 
 # Evaluate purity and plot purity distribution of atomic clusters
-    atomSizes = [ len(atom) for atom in atoms ]
-    purities = []
-    majorities = []
+    atomSizes = [ len(blob) for atom in atoms ]
+    atomPurities = []
+    atomMajorities = []
     for atom in atoms:
         assignments = [ labels[doc] for doc in atom ] # Create list of groundtruth labels of all docs for that atom
         c = Counter(assignments)
         mostCommonLabel,maxLabelCount = c.most_common(1)[0] # Class that shows up most in this atom, and how many times it showed up
-        majorities.append(mostCommonLabel) # List of most common class in each atom
-        purities.append(maxLabelCount / len(atom)) # Store tuple of purity and which class the atom was.
+        atomMajorities.append(mostCommonLabel) # List of most common class in each atom
+        atomPurities.append(maxLabelCount / len(atom)) # Store tuple of purity and which class the atom was.
     print("atom evaluation done.")
     
-    plt.hist(purities)
+    plt.hist(atomPurities)
     plt.title("Distribution of atom purities")
     plt.show()
 
@@ -88,13 +88,14 @@ def main(args):
     gmm = GaussianMixture(n_components=num_blobs, 
                           covariance_type='tied',
                           random_state=args.random_state,
-                          n_init=2)
+                          n_init=999)
     gmm.fit(nuclei)
     atomToBlob = gmm.predict(nuclei) # Map every nucleus to a blob
     blobs = [ set() for blob in range(num_blobs) ]
     # Currently not maintaining a set of atoms per blob, instead doing documents per blob.
     for atom,blob in enumerate(atomToBlob): # For each atom and the blob to which atom is assigned...
         blobs[blob] = blobs[blob].union(atoms[atom])
+    print("gmm done.")
 # Evaluate blob purity
     blobSizes = [ len(atom) for blob in blobs ]
     blobPurities = []
