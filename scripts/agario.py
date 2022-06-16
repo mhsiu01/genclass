@@ -39,7 +39,7 @@ def main(args):
         d = pk.load(f)
         rawDocReps = d["raw_document_representations"]
         classReps = d["class_representations"]
-    with open(os.path.join(INTERMEDIATE_DATA_FOLDER_PATH, args.dataset, STATIC_REPS_FILE), "rb") as f:
+    with open(os.path.join(INTERMEDIATE_DATA_FOLDER_PATH, args.dataset, "dataset.pk"), "rb") as f:
         d = pk.load(f)
         knownClassNames = d["class_names"]
     with open(os.path.join(DATA_FOLDER_PATH, args.dataset, "labels.txt"), "rb") as f:
@@ -51,6 +51,7 @@ def main(args):
     _pca = PCA(n_components=args.pca, random_state=args.random_state)
     rawDocReps = _pca.fit_transform(rawDocReps)
     classReps  = _pca.transform(classReps)
+    print("pca done.")
 
 # Run Kmeans clustering
     numDocs = len(rawDocReps)
@@ -61,20 +62,22 @@ def main(args):
     atoms = [ set() for atom in range(numAtoms) ] # Maintain list of docs in each atom
     for doc,atom in enumerate(docToAtom): # Partition integer indices of all docs into the atoms' sets
         atoms[atom].add(doc)
+    print("kmeans done.")
 
 # Evaluate purity and plot purity distribution of atomic clusters
     atomSizes = [ len(atom) for atom in atoms ]
     purities = []
     majorities = []
     for atom in atoms:
-        assigments = [ labels[doc] for doc in atom ] # Create list of groundtruth labels of all docs for that atom
+        assignments = [ labels[doc] for doc in atom ] # Create list of groundtruth labels of all docs for that atom
         c = Counter(assignments)
         mostCommonLabel,maxLabelCount = c.most_common(1)[0] # Class that shows up most in this atom, and how many times it showed up
         majorities.append(mostCommonLabel) # List of most common class in each atom
-        purities.append((maxLabelCount / len(atom)) # Store tuple of purity and which class the atom was.
+        purities.append(maxLabelCount / len(atom)) # Store tuple of purity and which class the atom was.
+    print("atom evaluation done.")
     
     plt.hist(purities)
-    plt.set(title="Distribution of atom purities")
+    plt.title("Distribution of atom purities")
     plt.show()
 
 
