@@ -107,6 +107,8 @@ def main(args):
         blobMajorities.append(mostCommonLabel) # List of most common class in each blob
         blobPurities.append(maxLabelCount / len(blob)) # Store tuple of purity and which class the blob was.
     print("blob evaluation done.")
+    for i in range(len(blobs)):
+        print(f"Blob #{i} had purity {blobPurities[i]} and majority class {blobMajorities[i]}")
     
     plt.hist(blobPurities)
     plt.title("Distribution of blob purities")
