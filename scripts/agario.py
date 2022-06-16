@@ -65,7 +65,7 @@ def main(args):
     print("kmeans done.")
 
 # Evaluate purity and plot purity distribution of atomic clusters
-    atomSizes = [ len(blob) for atom in atoms ]
+    atomSizes = [ len(atom) for atom in atoms ]
     atomPurities = []
     atomMajorities = []
     for atom in atoms:
@@ -97,7 +97,7 @@ def main(args):
         blobs[blob] = blobs[blob].union(atoms[atom])
     print("gmm done.")
 # Evaluate blob purity
-    blobSizes = [ len(atom) for blob in blobs ]
+    blobSizes = [ len(blob) for blob in blobs ]
     blobPurities = []
     blobMajorities = []
     for blob in blobs:
