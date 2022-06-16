@@ -82,7 +82,36 @@ def main(args):
 
 
 # Perform GMM on atomic clusters
+    nuclei = kmeans.cluster_centers_ # Array of atom centers
+    print(f"nuclei shape is {nuclei.shape}")
+    num_blobs = args.num_expected
+    gmm = GaussianMixture(n_components=num_blobs, 
+                          covariance_type='tied',
+                          random_state=args.random_state,
+                          n_init=2)
+    gmm.fit(nuclei)
+    atomToBlob = gmm.predict(nuclei) # Map every nucleus to a blob
+    blobs = [ set() for blob in range(num_blobs) ]
+    # Currently not maintaining a set of atoms per blob, instead doing documents per blob.
+    for atom,blob in enumerate(atomToBlob): # For each atom and the blob to which atom is assigned...
+        blobs[blob] = blobs[blob].union(atoms[atom])
 # Evaluate blob purity
+    blobSizes = [ len(atom) for blob in blobs ]
+    blobPurities = []
+    blobMajorities = []
+    for blob in blobs:
+        assignments = [ labels[doc] for doc in blob ] # Create list of groundtruth labels of all docs for that blob
+        c = Counter(assignments)
+        mostCommonLabel,maxLabelCount = c.most_common(1)[0] # Class that shows up most in this blob, and how many times it showed up
+        blobMajorities.append(mostCommonLabel) # List of most common class in each blob
+        blobPurities.append(maxLabelCount / len(blob)) # Store tuple of purity and which class the blob was.
+    print("blob evaluation done.")
+    
+    plt.hist(blobPurities)
+    plt.title("Distribution of blob purities")
+    plt.show()    
+
+
 
 
 if __name__ == '__main__':
