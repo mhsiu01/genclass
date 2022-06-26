@@ -92,7 +92,7 @@ def main(args):
     fig.suptitle("Euclidean distance displacements by class")
     plt.setp(axes, xlim=(0,5))
     for classNum,className in enumerate(orig_class_names):
-        axes.flat[classNum].set_title(f"className")
+        axes.flat[classNum].set_title(f"{className}")
         classDistChanges = distChanges_perClass[classNum]
         axes.flat[classNum].hist(classDistChanges)
     plt.show()
@@ -101,7 +101,7 @@ def main(args):
     fig.suptitle("Cosine similarity displacements by class")
     plt.setp(axes, xlim=(-0.5, 1.0))
     for classNum,className in enumerate(orig_class_names):
-        axes.flat[classNum].set_title(f"className")
+        axes.flat[classNum].set_title(f"{className}")
         classCosChanges = cosChanges_perClass[classNum]
         axes.flat[classNum].hist(classCosChanges)
     plt.show()    
