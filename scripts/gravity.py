@@ -32,14 +32,19 @@ def main(args):
 # Preprocessing: importing data, PCA
     with open(os.path.join(INTERMEDIATE_DATA_FOLDER_PATH, args.dataset, DOC_REPS_FILE), "rb") as f:
         d = pk.load(f)
-        rawDocReps = d["raw_document_representations"]
+        rawDocReps      = d["raw_document_representations"]
         orientedDocReps = d["document_representations"]
-        classReps = d["class_representations"]
+        numDocs = len(rawDocReps)
+        classReps       = d["class_representations"]
     with open(os.path.join(INTERMEDIATE_DATA_FOLDER_PATH, args.dataset, "dataset.pk"), "rb") as f:
         d = pk.load(f)
         knownClassNames = d["class_names"]
+        print(f"knownClassNames = {knownClassNames}")
+    with open(os.path.join(INTERMEDIATE_DATA_FOLDER_PATH, f"../datasets/{args.dataset}", "original_classes.txt"), "r") as f:
+        orig_class_names = f.readlines()
+        print(f"orig_class_names = {orig_class_names}")
     with open(os.path.join(DATA_FOLDER_PATH, args.dataset, "labels.txt"), "rb") as f:
-        lines = np.loadtxt(f)
+        lines  = np.loadtxt(f)
         labels = np.array(lines)
         labels = labels.astype(int)
 
@@ -50,24 +55,57 @@ def main(args):
     classReps       = _pca.transform(classReps)
     print("pca done.")
 
-# Find displacement of doc reps before-and-after class orientation.
-    distChanges = [np.linalg.norm(orientedDocReps[i]-rawDocReps[i]) for i in range(len(rawDocReps))] # Euclidean distance between before-and-after of a doc rep
+# Find displacement (of Euclidean distance and of cosine similarity) of doc reps before-and-after class orientation.
+    distChanges = [np.linalg.norm(orientedDocReps[i]-rawDocReps[i]) for i in range(numDocs)] # Euclidean distance between before-and-after of a doc rep
     rawCosSim      = cosine_similarity_embeddings(rawDocReps, classReps)      # All cosine similarities
     orientedCosSim = cosine_similarity_embeddings(orientedDocReps, classReps)
     maxRawSim      = np.amax(rawCosSim, axis=1) # Max cosine similarities
     maxOrientedSim = np.amax(orientedCosSim, axis=1)
-    cosChanges = [ maxOrientedSim[i]-maxRawSim[i] for i in range(len(rawDocReps))] # Changes in max cosine similarity to a known class rep after class orientation
+    # We can also investigate whether the class representation that has greatest similarity for a given doc is different before-and-after class orientation.
+    print("done calculating euclidean distance and cosine similarity changes after class-orientation process")
+    cosChanges = [ maxOrientedSim[i]-maxRawSim[i] for i in range(numDocs)] # Changes in max cosine similarity to a known class rep after class orientation
     
+    # Graphing distribution of changes in histogram
     plt.hist(distChanges)
-    plt.title("Distribution of Euclidean distance displacements")
+    plt.title("Distribution of Euclidean distance displacements for all docs")
     plt.show()
-
     plt.hist(cosChanges)
-    plt.title("Distribution of max cosine similarity displacements")
+    plt.title("Distribution of max cosine similarity displacements for all docs")
     plt.show()    
 
-
-
+# Show displacement by class
+    # Create one list per class to hold each displacement type for that class
+    distChanges_perClass = [ [] for i in range(args.num_expected) ] 
+    cosChanges_perClass  = [ [] for i in range(args.num_expected) ]
+    for doc_index in range(numDocs):
+        # Get displacements for that document
+        distChange = distChanges[doc_index]
+        cosChange  = cosChanges[doc_index]
+        # Add displacements to list for that doc's groundtruth class
+        docClass = labels[doc_index]
+        distChanges_perClass[docClass].append(distChange)
+        cosChanges_perClass[docClass].append(cosChange)
+    
+# Graphing displacements by class
+    # Euclidean distance:
+    fig, axes = plt.subplots(3,3,figsize=(10,10), constrained_layout=True)
+    fig.suptitle("Euclidean distance displacements by class")
+    plt.setp(axes, xlim=(0,5))
+    for classNum,className in enumerate(orig_class_names):
+        axes.flat[classNum].set_title(f"className")
+        classDistChanges = distChanges_perClass[classNum]
+        axes.flat[classNum].hist(classDistChanges)
+    plt.show()
+    # Cosine similarity:
+    fig, axes = plt.subplots(3,3,figsize=(10,10), constrained_layout=True)
+    fig.suptitle("Cosine similarity displacements by class")
+    plt.setp(axes, xlim=(-0.5, 1.0))
+    for classNum,className in enumerate(orig_class_names):
+        axes.flat[classNum].set_title(f"className")
+        classCosChanges = cosChanges_perClass[classNum]
+        axes.flat[classNum].hist(classCosChanges)
+    plt.show()    
+        
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -82,7 +120,7 @@ if __name__ == '__main__':
     parser.add_argument("--attention_mechanism", type=str, default="mixture")
     parser.add_argument("--layer", type=int, default=12)
     parser.add_argument("--random_state", type=int, default=42)
-    # parser.add_argument("--num_expected", type=int, default=9)
+    parser.add_argument("--num_expected", type=int, default=9)
 
     args = parser.parse_args()
     main(args)
