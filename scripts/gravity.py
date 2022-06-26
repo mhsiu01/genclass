@@ -5,6 +5,7 @@ import os
 import pickle as pk
 import random
 import re
+from collections import Counter
 
 import numpy as np
 import scipy.stats
@@ -15,7 +16,6 @@ from sklearn.mixture import GaussianMixture
 from sklearn.mixture._gaussian_mixture import _estimate_gaussian_parameters
 from sklearn.preprocessing import normalize
 from tqdm import tqdm
-from collections import Counter
 import matplotlib.pyplot as plt
 
 from utils import (INTERMEDIATE_DATA_FOLDER_PATH, DATA_FOLDER_PATH, cosine_similarity_embedding,
@@ -75,12 +75,14 @@ if __name__ == '__main__':
     parser.add_argument("--dataset", type=str)
     parser.add_argument("--pca", type=int, default=64)
     # parser.add_argument("--atom_size", type=int, default=50)
+
     # language model + layer + attention mechanism + T
     parser.add_argument("--lm_type", default="bbu")
     parser.add_argument("--document_repr_type", default="mixture-100")
     parser.add_argument("--attention_mechanism", type=str, default="mixture")
     parser.add_argument("--layer", type=int, default=12)
     parser.add_argument("--random_state", type=int, default=42)
-    # parser.add_argument("--num_expected", type=int, default=9)    
+    # parser.add_argument("--num_expected", type=int, default=9)
+
     args = parser.parse_args()
     main(args)
