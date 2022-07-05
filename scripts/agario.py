@@ -9,6 +9,7 @@ import os
 import pickle as pk
 import random
 import re
+import copy
 
 import numpy as np
 import scipy.stats
@@ -34,7 +35,7 @@ DOC_REPS_FILE = "document_repr_lm-bbu-12-mixture-100.pk"
 
 
 def main(args):
-# Preprocessing: importing data, PCA
+    # 0. Preprocessing: importing data
     with open(os.path.join(INTERMEDIATE_DATA_FOLDER_PATH, args.dataset, DOC_REPS_FILE), "rb") as f:
         d = pk.load(f)
         rawDocReps = d["raw_document_representations"]
@@ -47,13 +48,45 @@ def main(args):
         labels = np.array(lines)
         labels = labels.astype(int)
 
-# Start with document reps, raw.
+    # 1. PCA on document and class representations
     _pca = PCA(n_components=args.pca, random_state=args.random_state)
     rawDocReps = _pca.fit_transform(rawDocReps)
     classReps  = _pca.transform(classReps)
-    print("pca done.")
+    print(f"PCA dimension {args.pca} has explained variance: {sum(_pca.explained_variance_ratio_)}")
 
-# Run Kmeans clustering
+    # 2. Loop over atom sizes
+    numDocs = len(rawDocReps)
+    atomSizes = [10, 25, 50, 100, 200, 500, 1000]
+    allInits = {}
+    for size in atomSizes:
+        # A. Cluster dataset into atoms
+        numAtoms = int(numDocs / args.atom_size)        
+        kmeans_atomic = KMeans(n_clusters=numAtoms, init='k-means++', random_state=args.random_state)
+        kmeans_atomic.fit(rawDocReps)
+        docToAtom = kmeans_atomic.predict(rawDocReps) # Map every doc-rep to its cluster/atom
+        atoms = [ set() for atom in range(numAtoms) ] # For each atom, maintain set of docs in it
+        for doc,atom in enumerate(docToAtom): # Partition integer indices of all docs into the atoms' sets
+            atoms[atom].add(doc)
+
+        # B. Pin class representations
+        kmeans_init = copy.deepcopy(classReps)
+
+        # C. Use pseudo-KMeans++ to initalize remaining cluster centers
+        nuclei = kmeans_atomic.cluster_centers_
+
+        # KMeans++ logic goes here #    
+
+        # D. Perform KMeans after obtaining the initialization
+        kmeans_docs = KMeans(n_clusters=numAtoms, init=kmeans_init, random_state=args.random_state)
+        allInits[size] = (size, kmeans_init, inertia) # Check that kmeans_init is actually different for each iteration over atomSizes
+
+
+    # 3. Keep clustering/initalization with best inertia
+
+    # 4. Display confusion matrix
+
+
+    # Run Kmeans clustering
     numDocs = len(rawDocReps)
     numAtoms = int(numDocs / args.atom_size)
     kmeans = KMeans(n_clusters=numAtoms, init='k-means++', random_state=args.random_state)
@@ -80,7 +113,7 @@ def main(args):
     plt.title("Distribution of atom purities")
     plt.show()
 
-
+''' GMM performed poorly when used to cluster atoms.
 # Perform GMM on atomic clusters
     nuclei = kmeans.cluster_centers_ # Array of atom centers
     print(f"nuclei shape is {nuclei.shape}")
@@ -113,7 +146,7 @@ def main(args):
     plt.hist(blobPurities)
     plt.title("Distribution of blob purities")
     plt.show()    
-
+'''
 
 
 
