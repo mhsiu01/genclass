@@ -99,8 +99,8 @@ def main(args):
     allInits = {}
     for size in atomSizes:
         # A. Cluster dataset into atoms
-        numAtoms = int(numDocs / args.atom_size)        
-        kmeans_atomic = KMeans(n_clusters=numAtoms, init='k-means++', random_state=args.random_state, n_init=1)
+        numAtoms = int(numDocs / size) # args.atom_size
+        kmeans_atomic = KMeans(n_clusters=numAtoms, init='k-means++', random_state=args.random_state)
         kmeans_atomic.fit(rawDocReps)
         docToAtom = kmeans_atomic.predict(rawDocReps) # Map every doc-rep to its cluster/atom
         atoms = [ set() for atom in range(numAtoms) ] # For each atom, maintain set of docs in it
@@ -133,7 +133,7 @@ def main(args):
     conf_matrix = confusion_matrix(labels, predictions)
     disp = ConfusionMatrixDisplay(confusion_matrix=conf_matrix, display_labels=list(range(args.num_expected)))
     disp.plot()
-    plt.title(f"{args.dataset_name}, rawDocReps, pseudo-kmeans++, atomSize={bestSize}")
+    plt.title(f"{args.dataset}, rawDocReps, pseudo-kmeans++, atomSize={bestSize}")
     plt.xticks(rotation=45)
     plt.show()    
 
