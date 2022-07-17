@@ -33,7 +33,7 @@ from cluster_utils import (generate_keywords, generate_class_representation,
 TOKENIZATION_FILE = "tokenization_lm-bbu-12.pk"
 STATIC_REPS_FILE = "static_repr_lm-bbu-12.pk"
 DOC_REPS_FILE = "document_repr_lm-bbu-12-mixture-100.pk"
-LABELS_FILE = ""
+# LABELS_FILE = ""
 
 
 
@@ -50,9 +50,13 @@ def pseudo_kmeans_plusplus(kmeans_init, numDocs, nuclei, classReps, num_expected
         print(f"distances shape after norm: {distances.shape}")
         distances = np.square(distances)
         print(f"distances shape after element-wise squaring: {distances.shape}")
+        distances = np.amin(distances, axis=1)
+        print(f"distances shape after taking minimum centroid-distance per nucleus: {distances.shape}")
+        distances = normalize(distances, norm='l1', axis=0)
+        print(f"distances shape after normalizing: {distances.shape}")
         # Keep sampling until we get a nuclei that wasn't already chosen
         while True:
-            new_centroid_ID = np.random.choice(len(nuclei), 1, distances)
+            new_centroid_ID = np.random.choice(len(nuclei), 1, p=distances)
             if new_centroid_ID not in already_assigned_nuclei:
                 already_assigned_nuclei.append(new_centroid_ID)
                 break
@@ -118,7 +122,7 @@ def main(args):
 
     # 4. Display confusion matrix
     predictions = allInits[bestSize][3]
-    conf_matrix = confusion_matrix(labels, predictions, labels=list(range(args.num_expected))
+    conf_matrix = confusion_matrix(labels, predictions)
     disp = ConfusionMatrixDisplay(confusion_matrix=conf_matrix, display_labels=list(range(args.num_expected))
     disp.plot()
     plt.title(f"{args.dataset_name}, rawDocReps, pseudo-kmeans++, atomSize={bestSize}")
