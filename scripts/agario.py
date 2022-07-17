@@ -44,6 +44,9 @@ def pseudo_kmeans_plusplus(kmeans_init, numDocs, nuclei, classReps, num_expected
 
     for centroid in range(num_expected-len(classReps)):
         # Calculate D(x), then D(x)^2
+        print(f"centroid = {centroid}")
+        print(f"nuclei shape = {nuclei.shape}")
+        print(f"kmeans_init shape = {kmeans_init.shape}")
         distances = np.repeat(nuclei[:,np.newaxis,:], len(kmeans_init), axis=1)
         print(f"distances shape after repeating nuclei: {distances.shape}")
         distances = np.linalg.norm(distances - kmeans_init, axis=2)
@@ -116,7 +119,7 @@ def main(args):
         allInits[size] = (size, kmeans_init, kmeans_docs.inertia_, kmeans_docs.predict(rawDocReps)) # Check that kmeans_init is actually different for each iteration over atomSizes
 
 
-    # 3. Keep clustering/initalization with best inertia
+    # 3. Select clustering/initalization with best inertia
     bestSize = atomSizes[0]
     bestInertia = allInits[bestSize][2]
     for size in allInits:
