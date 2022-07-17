@@ -35,8 +35,6 @@ STATIC_REPS_FILE = "static_repr_lm-bbu-12.pk"
 DOC_REPS_FILE = "document_repr_lm-bbu-12-mixture-100.pk"
 # LABELS_FILE = ""
 
-
-
 def pseudo_kmeans_plusplus(kmeans_init, numDocs, nuclei, classReps, num_expected):
     print(f"kmeans_init shape = {kmeans_init.shape}")
     print(f"nuclei shape = {nuclei.shape}")
@@ -67,7 +65,10 @@ def pseudo_kmeans_plusplus(kmeans_init, numDocs, nuclei, classReps, num_expected
             if new_centroid_ID not in already_assigned_nuclei:
                 already_assigned_nuclei.append(new_centroid_ID)
                 break
+        print(f"kmeans_init shape after finding next centroid = {kmeans_init.shape}")
+        print(f"nuclei[new_centroid_ID].shape = {nuclei[new_centroid_ID].shape}")
         kmeans_init = np.append(kmeans_init, nuclei[new_centroid_ID])
+        print(f"kmeans_init shape after appending next centroid= {kmeans_init.shape}")
 
     print(f"kmeans_init shape = {kmeans_init.shape}")
     return kmeans_init
@@ -99,7 +100,7 @@ def main(args):
     for size in atomSizes:
         # A. Cluster dataset into atoms
         numAtoms = int(numDocs / args.atom_size)        
-        kmeans_atomic = KMeans(n_clusters=numAtoms, init='k-means++', random_state=args.random_state)
+        kmeans_atomic = KMeans(n_clusters=numAtoms, init='k-means++', random_state=args.random_state, n_init=1)
         kmeans_atomic.fit(rawDocReps)
         docToAtom = kmeans_atomic.predict(rawDocReps) # Map every doc-rep to its cluster/atom
         atoms = [ set() for atom in range(numAtoms) ] # For each atom, maintain set of docs in it
