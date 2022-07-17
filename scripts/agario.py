@@ -42,33 +42,33 @@ def pseudo_kmeans_plusplus(kmeans_init, numDocs, nuclei, classReps, num_expected
 
     for centroid in range(num_expected-len(classReps)):
         # Calculate D(x), then D(x)^2
-        print(f"centroid = {centroid}")
-        print(f"nuclei shape = {nuclei.shape}")
-        print(f"kmeans_init shape = {kmeans_init.shape}")
+        # print(f"centroid = {centroid}")
+        # print(f"nuclei shape = {nuclei.shape}")
+        # print(f"kmeans_init shape = {kmeans_init.shape}")
         distances = np.repeat(nuclei[:,np.newaxis,:], len(kmeans_init), axis=1)
-        print(f"distances shape after repeating nuclei: {distances.shape}")
+        # print(f"distances shape after repeating nuclei: {distances.shape}")
         distances = np.linalg.norm(distances - kmeans_init, axis=2)
-        print(f"distances shape after norm: {distances.shape}")
+        # print(f"distances shape after norm: {distances.shape}")
         distances = np.amin(distances, axis=1)
-        print(f"distances shape after taking minimum centroid-distance per nucleus: {distances.shape}")
+        # print(f"distances shape after taking minimum centroid-distance per nucleus: {distances.shape}")
 
         distances = np.square(distances)
-        print(f"distances shape after element-wise squaring: {distances.shape}")      
+        # print(f"distances shape after element-wise squaring: {distances.shape}")      
         normalize_sum = np.sum(distances)
         distances = distances/normalize_sum
         # distances = normalize(distances, norm='l1', axis=0)
-        print(f"distances shape after normalizing: {distances.shape}")
-        print(f"distances sum after normalizing: {np.sum(distances)}")
+        # print(f"distances shape after normalizing: {distances.shape}")
+        # print(f"distances sum after normalizing: {np.sum(distances)}")
         # Keep sampling until we get a nuclei that wasn't already chosen
         while True:
             new_centroid_ID = np.random.choice(len(nuclei), 1, p=distances)
             if new_centroid_ID not in already_assigned_nuclei:
                 already_assigned_nuclei.append(new_centroid_ID)
                 break
-        print(f"kmeans_init shape after finding next centroid = {kmeans_init.shape}")
-        print(f"nuclei[new_centroid_ID].shape = {nuclei[new_centroid_ID].shape}")
+        # print(f"kmeans_init shape after finding next centroid = {kmeans_init.shape}")
+        # print(f"nuclei[new_centroid_ID].shape = {nuclei[new_centroid_ID].shape}")
         kmeans_init = np.append(kmeans_init, nuclei[new_centroid_ID], axis=0)
-        print(f"kmeans_init shape after appending next centroid= {kmeans_init.shape}")
+        # print(f"kmeans_init shape after appending next centroid= {kmeans_init.shape}")
 
     print(f"kmeans_init shape = {kmeans_init.shape}")
     return kmeans_init
@@ -95,17 +95,17 @@ def main(args):
 
     # 2. Loop over atom sizes
     numDocs = len(rawDocReps)
-    atomSizes = [10, 50, 100, 500, 1000]#[10, 25, 50, 100, 200, 500, 1000]
+    atomSizes = [10, 50, 100, 250, 500, 650, 1000]#[10, 25, 50, 100, 200, 500, 1000]
     allInits = {}
     for size in atomSizes:
         # A. Cluster dataset into atoms
         numAtoms = int(numDocs / size) # args.atom_size
         kmeans_atomic = KMeans(n_clusters=numAtoms, init='k-means++', random_state=args.random_state)
         kmeans_atomic.fit(rawDocReps)
-        docToAtom = kmeans_atomic.predict(rawDocReps) # Map every doc-rep to its cluster/atom
-        atoms = [ set() for atom in range(numAtoms) ] # For each atom, maintain set of docs in it
-        for doc,atom in enumerate(docToAtom): # Partition integer indices of all docs into the atoms' sets
-            atoms[atom].add(doc)
+        # docToAtom = kmeans_atomic.predict(rawDocReps) # Map every doc-rep to its cluster/atom
+        # atoms = [ set() for atom in range(numAtoms) ] # For each atom, maintain set of docs in it
+        # for doc,atom in enumerate(docToAtom): # Partition integer indices of all docs into the atoms' sets
+        #     atoms[atom].add(doc)
 
         # B. Pin class representations
         kmeans_init = copy.deepcopy(classReps)
