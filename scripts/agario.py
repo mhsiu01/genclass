@@ -48,12 +48,16 @@ def pseudo_kmeans_plusplus(kmeans_init, numDocs, nuclei, classReps, num_expected
         print(f"distances shape after repeating nuclei: {distances.shape}")
         distances = np.linalg.norm(distances - classReps, axis=2)
         print(f"distances shape after norm: {distances.shape}")
-        distances = np.square(distances)
-        print(f"distances shape after element-wise squaring: {distances.shape}")
         distances = np.amin(distances, axis=1)
         print(f"distances shape after taking minimum centroid-distance per nucleus: {distances.shape}")
-        distances = normalize(distances, norm='l1', axis=0)
+
+        distances = np.square(distances)
+        print(f"distances shape after element-wise squaring: {distances.shape}")      
+        normalize_sum = np.sum(distances)
+        distances = distances/normalize_sum
+        # distances = normalize(distances, norm='l1', axis=0)
         print(f"distances shape after normalizing: {distances.shape}")
+        print(f"distances sum after normalizing: {np.sum(distances)}")
         # Keep sampling until we get a nuclei that wasn't already chosen
         while True:
             new_centroid_ID = np.random.choice(len(nuclei), 1, p=distances)
@@ -123,7 +127,7 @@ def main(args):
     # 4. Display confusion matrix
     predictions = allInits[bestSize][3]
     conf_matrix = confusion_matrix(labels, predictions)
-    disp = ConfusionMatrixDisplay(confusion_matrix=conf_matrix, display_labels=list(range(args.num_expected))
+    disp = ConfusionMatrixDisplay(confusion_matrix=conf_matrix, display_labels=list(range(args.num_expected)))
     disp.plot()
     plt.title(f"{args.dataset_name}, rawDocReps, pseudo-kmeans++, atomSize={bestSize}")
     plt.xticks(rotation=45)
