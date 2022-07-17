@@ -22,6 +22,7 @@ from sklearn.preprocessing import normalize
 from tqdm import tqdm
 from collections import Counter
 import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 from utils import (INTERMEDIATE_DATA_FOLDER_PATH, DATA_FOLDER_PATH, cosine_similarity_embedding,
                    cosine_similarity_embeddings, evaluate_predictions,
@@ -32,7 +33,33 @@ from cluster_utils import (generate_keywords, generate_class_representation,
 TOKENIZATION_FILE = "tokenization_lm-bbu-12.pk"
 STATIC_REPS_FILE = "static_repr_lm-bbu-12.pk"
 DOC_REPS_FILE = "document_repr_lm-bbu-12-mixture-100.pk"
+LABELS_FILE = ""
 
+
+
+def pseudo_kmeans_plusplus(kmeans_init, numDocs, nuclei, classReps, num_expected):
+    print(f"kmeans_init shape = {kmeans_init.shape}")
+    print(f"nuclei shape = {nuclei.shape}")
+    already_assigned_nuclei = []
+
+    for centroid in range(num_expected-len(classReps)):
+        # Calculate D(x), then D(x)^2
+        distances = np.repeat(nuclei[:,np.newaxis,:], len(kmeans_init), axis=1)
+        print(f"distances shape after repeating nuclei: {distances.shape}")
+        distances = np.linalg.norm(distances - classReps, axis=2)
+        print(f"distances shape after norm: {distances.shape}")
+        distances = np.square(distances)
+        print(f"distances shape after element-wise squaring: {distances.shape}")
+        # Keep sampling until we get a nuclei that wasn't already chosen
+        while True:
+            new_centroid_ID = np.random.choice(len(nuclei), 1, distances)
+            if new_centroid_ID not in already_assigned_nuclei:
+                already_assigned_nuclei.append(new_centroid_ID)
+                break
+        np.append(kmeans_init, nuclei[new_centroid_ID])
+
+    print(f"kmeans_init shape = {kmeans_init.shape}")
+    return kmeans_init
 
 def main(args):
     # 0. Preprocessing: importing data
@@ -56,7 +83,7 @@ def main(args):
 
     # 2. Loop over atom sizes
     numDocs = len(rawDocReps)
-    atomSizes = [10, 25, 50, 100, 200, 500, 1000]
+    atomSizes = [10, 50, 100, 500, 1000]#[10, 25, 50, 100, 200, 500, 1000]
     allInits = {}
     for size in atomSizes:
         # A. Cluster dataset into atoms
@@ -72,46 +99,59 @@ def main(args):
         kmeans_init = copy.deepcopy(classReps)
 
         # C. Use pseudo-KMeans++ to initalize remaining cluster centers
-        nuclei = kmeans_atomic.cluster_centers_
-
-        # KMeans++ logic goes here #    
+        nuclei = kmeans_atomic.cluster_centers_    
+        kmeans_init = pseudo_kmeans_plusplus(kmeans_init, numDocs, nuclei, classReps, args.num_expected) # [ classRep1, classRep2, ..., kmeans++1, kmeans++2, ...]
 
         # D. Perform KMeans after obtaining the initialization
-        kmeans_docs = KMeans(n_clusters=numAtoms, init=kmeans_init, random_state=args.random_state)
-        allInits[size] = (size, kmeans_init, inertia) # Check that kmeans_init is actually different for each iteration over atomSizes
+        kmeans_docs = KMeans(n_clusters=args.num_expected, init=kmeans_init, random_state=args.random_state)
+        kmeans_docs.fit(rawDocReps)
+        allInits[size] = (size, kmeans_init, kmeans_docs.inertia_, kmeans_docs.predict(rawDocReps)) # Check that kmeans_init is actually different for each iteration over atomSizes
 
 
     # 3. Keep clustering/initalization with best inertia
+    bestSize = atomSizes[0]
+    bestInertia = allInits[bestSize][2]
+    for size in allInits:
+        if allInits[size][2] < bestInertia:
+            bestSize = size
+            bestInertia = allInits[size][2]
 
     # 4. Display confusion matrix
+    predictions = allInits[bestSize][3]
+    conf_matrix = confusion_matrix(labels, predictions, labels=list(range(args.num_expected))
+    disp = ConfusionMatrixDisplay(confusion_matrix=conf_matrix, display_labels=list(range(args.num_expected))
+    disp.plot()
+    plt.title(f"{args.dataset_name}, rawDocReps, pseudo-kmeans++, atomSize={bestSize}")
+    plt.xticks(rotation=45)
+    plt.show()    
 
-
-    # Run Kmeans clustering
-    numDocs = len(rawDocReps)
-    numAtoms = int(numDocs / args.atom_size)
-    kmeans = KMeans(n_clusters=numAtoms, init='k-means++', random_state=args.random_state)
-    kmeans.fit(rawDocReps)
-    docToAtom = kmeans.predict(rawDocReps) # Map every doc-rep to its atom
-    atoms = [ set() for atom in range(numAtoms) ] # Maintain list of docs in each atom
-    for doc,atom in enumerate(docToAtom): # Partition integer indices of all docs into the atoms' sets
-        atoms[atom].add(doc)
-    print("kmeans done.")
+    # Run Kmeans clustering ---------------------------[OLD]------------------------------------------------------
+    # numDocs = len(rawDocReps)
+    # numAtoms = int(numDocs / args.atom_size)
+    # kmeans = KMeans(n_clusters=numAtoms, init='k-means++', random_state=args.random_state)
+    # kmeans.fit(rawDocReps)
+    # docToAtom = kmeans.predict(rawDocReps) # Map every doc-rep to its atom
+    # atoms = [ set() for atom in range(numAtoms) ] # Maintain list of docs in each atom
+    # for doc,atom in enumerate(docToAtom): # Partition integer indices of all docs into the atoms' sets
+    #     atoms[atom].add(doc)
+    # print("kmeans done.")
+    # Run Kmeans clustering ---------------------------[OLD]------------------------------------------------------
 
 # Evaluate purity and plot purity distribution of atomic clusters
-    atomSizes = [ len(atom) for atom in atoms ]
-    atomPurities = []
-    atomMajorities = []
-    for atom in atoms:
-        assignments = [ labels[doc] for doc in atom ] # Create list of groundtruth labels of all docs for that atom
-        c = Counter(assignments)
-        mostCommonLabel,maxLabelCount = c.most_common(1)[0] # Class that shows up most in this atom, and how many times it showed up
-        atomMajorities.append(mostCommonLabel) # List of most common class in each atom
-        atomPurities.append(maxLabelCount / len(atom)) # Store tuple of purity and which class the atom was.
-    print("atom evaluation done.")
+    # atomSizes = [ len(atom) for atom in atoms ]
+    # atomPurities = []
+    # atomMajorities = []
+    # for atom in atoms:
+    #     assignments = [ labels[doc] for doc in atom ] # Create list of groundtruth labels of all docs for that atom
+    #     c = Counter(assignments)
+    #     mostCommonLabel,maxLabelCount = c.most_common(1)[0] # Class that shows up most in this atom, and how many times it showed up
+    #     atomMajorities.append(mostCommonLabel) # List of most common class in each atom
+    #     atomPurities.append(maxLabelCount / len(atom)) # Store tuple of purity and which class the atom was.
+    # print("atom evaluation done.")
     
-    plt.hist(atomPurities)
-    plt.title("Distribution of atom purities")
-    plt.show()
+    # plt.hist(atomPurities)
+    # plt.title("Distribution of atom purities")
+    # plt.show()
 
 ''' GMM performed poorly when used to cluster atoms.
 # Perform GMM on atomic clusters
