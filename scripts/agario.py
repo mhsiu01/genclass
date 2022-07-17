@@ -64,7 +64,7 @@ def pseudo_kmeans_plusplus(kmeans_init, numDocs, nuclei, classReps, num_expected
             if new_centroid_ID not in already_assigned_nuclei:
                 already_assigned_nuclei.append(new_centroid_ID)
                 break
-        np.append(kmeans_init, nuclei[new_centroid_ID])
+        kmeans_init = np.append(kmeans_init, nuclei[new_centroid_ID])
 
     print(f"kmeans_init shape = {kmeans_init.shape}")
     return kmeans_init
