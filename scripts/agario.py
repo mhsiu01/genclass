@@ -46,7 +46,7 @@ def pseudo_kmeans_plusplus(kmeans_init, numDocs, nuclei, classReps, num_expected
         # Calculate D(x), then D(x)^2
         distances = np.repeat(nuclei[:,np.newaxis,:], len(kmeans_init), axis=1)
         print(f"distances shape after repeating nuclei: {distances.shape}")
-        distances = np.linalg.norm(distances - classReps, axis=2)
+        distances = np.linalg.norm(distances - kmeans_init, axis=2)
         print(f"distances shape after norm: {distances.shape}")
         distances = np.amin(distances, axis=1)
         print(f"distances shape after taking minimum centroid-distance per nucleus: {distances.shape}")
