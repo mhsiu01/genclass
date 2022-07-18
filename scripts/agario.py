@@ -33,6 +33,7 @@ from cluster_utils import (generate_keywords, generate_class_representation,
 TOKENIZATION_FILE = "tokenization_lm-bbu-12.pk"
 STATIC_REPS_FILE = "static_repr_lm-bbu-12.pk"
 DOC_REPS_FILE = "document_repr_lm-bbu-12-mixture-100.pk"
+# FIG_SAVE_PATH = "../figures/kmeansplusplus/" # Assuming working directory is 'scripts'
 # LABELS_FILE = ""
 
 def pseudo_kmeans_plusplus(kmeans_init, numDocs, nuclei, classReps, num_expected):
@@ -77,8 +78,9 @@ def main(args):
     # 0. Preprocessing: importing data
     with open(os.path.join(INTERMEDIATE_DATA_FOLDER_PATH, args.dataset, DOC_REPS_FILE), "rb") as f:
         d = pk.load(f)
-        rawDocReps = d["raw_document_representations"]
-        classReps = d["class_representations"]
+        rawDocReps      = d["raw_document_representations"]
+        orientedDocReps = d["document_representations"]
+        classReps       = d["class_representations"]
     with open(os.path.join(INTERMEDIATE_DATA_FOLDER_PATH, args.dataset, "dataset.pk"), "rb") as f:
         d = pk.load(f)
         knownClassNames = d["class_names"]
@@ -88,54 +90,51 @@ def main(args):
         labels = labels.astype(int)
 
     # 1. PCA on document and class representations
+    docReps = rawDocReps
+    if args.oriented:
+        docReps = orientedDocReps
     _pca = PCA(n_components=args.pca, random_state=args.random_state)
-    rawDocReps = _pca.fit_transform(rawDocReps)
+    docReps = _pca.fit_transform(docReps)
     classReps  = _pca.transform(classReps)
     print(f"PCA dimension {args.pca} has explained variance: {sum(_pca.explained_variance_ratio_)}")
 
     # 2. Loop over atom sizes
-    numDocs = len(rawDocReps)
-    atomSizes = [10, 50, 100, 250, 500, 650, 1000]#[10, 25, 50, 100, 200, 500, 1000]
+    numDocs = len(docReps)
+    atomSizes = [50, 100, 200, 400, 800, 1600]
     allInits = {}
     for size in atomSizes:
         # A. Cluster dataset into atoms
         numAtoms = int(numDocs / size) # args.atom_size
         kmeans_atomic = KMeans(n_clusters=numAtoms, init='k-means++', random_state=args.random_state)
-        kmeans_atomic.fit(rawDocReps)
-        # docToAtom = kmeans_atomic.predict(rawDocReps) # Map every doc-rep to its cluster/atom
-        # atoms = [ set() for atom in range(numAtoms) ] # For each atom, maintain set of docs in it
-        # for doc,atom in enumerate(docToAtom): # Partition integer indices of all docs into the atoms' sets
-        #     atoms[atom].add(doc)
-
+        kmeans_atomic.fit(docReps)
         # B. Pin class representations
         kmeans_init = copy.deepcopy(classReps)
-
         # C. Use pseudo-KMeans++ to initalize remaining cluster centers
         nuclei = kmeans_atomic.cluster_centers_    
         kmeans_init = pseudo_kmeans_plusplus(kmeans_init, numDocs, nuclei, classReps, args.num_expected) # [ classRep1, classRep2, ..., kmeans++1, kmeans++2, ...]
-
         # D. Perform KMeans after obtaining the initialization
         kmeans_docs = KMeans(n_clusters=args.num_expected, init=kmeans_init, random_state=args.random_state)
-        kmeans_docs.fit(rawDocReps)
-        allInits[size] = (size, kmeans_init, kmeans_docs.inertia_, kmeans_docs.predict(rawDocReps)) # Check that kmeans_init is actually different for each iteration over atomSizes
+        kmeans_docs.fit(docReps)
+        allInits[size] = (size, kmeans_init, kmeans_docs.inertia_, kmeans_docs.predict(docReps)) # Check that kmeans_init is actually different for each iteration over atomSizes
 
+        # 4. Display confusion matrix
+        predictions = kmeans_docs.predict(docReps)
+        conf_matrix = confusion_matrix(labels, predictions)
+        disp = ConfusionMatrixDisplay(confusion_matrix=conf_matrix, display_labels=list(range(args.num_expected)))
+        disp.plot()
+        plt.title(f"pseudo-kmeans++, {args.dataset}, oriented={args.oriented}, atomSize={size}")
+        plt.xticks(rotation=45)
+        plt.savefig(f"../figures/kmeansplusplus/{args.dataset}_oriented={args.oriented}_atomSize{size}.png")
+        # plt.show() 
+    # # 3. Select clustering/initalization with best inertia
+    # bestSize = atomSizes[0]
+    # bestInertia = allInits[bestSize][2]
+    # for size in allInits:
+    #     if allInits[size][2] < bestInertia:
+    #         bestSize = size
+    #         bestInertia = allInits[size][2]
 
-    # 3. Select clustering/initalization with best inertia
-    bestSize = atomSizes[0]
-    bestInertia = allInits[bestSize][2]
-    for size in allInits:
-        if allInits[size][2] < bestInertia:
-            bestSize = size
-            bestInertia = allInits[size][2]
-
-    # 4. Display confusion matrix
-    predictions = allInits[bestSize][3]
-    conf_matrix = confusion_matrix(labels, predictions)
-    disp = ConfusionMatrixDisplay(confusion_matrix=conf_matrix, display_labels=list(range(args.num_expected)))
-    disp.plot()
-    plt.title(f"{args.dataset}, rawDocReps, pseudo-kmeans++, atomSize={bestSize}")
-    plt.xticks(rotation=45)
-    plt.show()    
+   
 
     # Run Kmeans clustering ---------------------------[OLD]------------------------------------------------------
     # numDocs = len(rawDocReps)
@@ -215,5 +214,6 @@ if __name__ == '__main__':
     parser.add_argument("--layer", type=int, default=12)
     parser.add_argument("--random_state", type=int, default=42)
     parser.add_argument("--num_expected", type=int, default=9)    
+    parser.add_argument("--oriented", type=bool, default=False)
     args = parser.parse_args()
     main(args)
